@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: Apache-2.0
+# The gates, on every push. Ubuntu runners have cc, c++ and ImageMagick.
+name: gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vendor the Apache-2.0 reference the engine is gated against
+        run: tools/fetch_msfa.sh
+
+      - name: Run every gate
+        run: tools/run_host_tests.sh
+
+      - name: Screenshots are reproducible
+        run: |
+          tools/render_screens.sh "$RUNNER_TEMP/screens"
+          # the committed images must match what the renderer produces today
+          for f in docs/screens/*.png; do
+            name=$(basename "$f")
+            if ! cmp -s "$f" "$RUNNER_TEMP/screens/$name"; then
+              echo "screenshot out of date: $name (run tools/render_screens.sh)"
+              exit 1
+            fi
+          done
+          echo "all screenshots match the renderer"
