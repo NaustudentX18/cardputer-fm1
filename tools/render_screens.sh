@@ -23,11 +23,20 @@ cc -std=gnu11 -O2 -Wall -Wextra -Wno-unused-parameter \
 
 "$BIN" "$OUT"
 
-if command -v magick >/dev/null; then
+# ImageMagick 7 ships `magick`; 6 ships `convert`. The CI runner has only the latter, and
+# silently skipping the upscale produced a commit whose images did not match the script.
+IM=""
+if command -v magick >/dev/null 2>&1; then
+  IM="magick"
+elif command -v convert >/dev/null 2>&1; then
+  IM="convert"
+fi
+if [ -n "$IM" ]; then
   for f in "$OUT"/*.png; do
-    magick "$f" -filter point -resize 400% -strip -define png:compression-level=9 "$f"
+    "$IM" "$f" -filter point -resize 400% -strip -define png:compression-level=9 "$f"
   done
-  echo "upscaled 4x with point filtering"
+  echo "upscaled 4x with point filtering ($IM)"
 else
-  echo "note: no ImageMagick, screenshots stay at 240x135" >&2
+  echo "error: ImageMagick not found (need 'magick' or 'convert')" >&2
+  exit 1
 fi
