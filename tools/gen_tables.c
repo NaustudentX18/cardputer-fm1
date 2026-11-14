@@ -125,6 +125,21 @@ int main(void)
         printf("%s%d,", (f % 10) ? " " : "\n   ", (int32_t)floor(24204406.323123 * log(1 + 0.01 * f) + 0.5));
     printf("\n};\n\n");
 
+    /* Filter coefficients for fm_fx.c: tan(pi * fc / fs) in Q12 for the 0..127 cutoff
+     * scale, 30 Hz .. 16 kHz, logarithmic. Generated here so the firmware needs no libm
+     * and so the host and the device use the same numbers. */
+    printf("/* fm_fx.c: tan(pi*fc/fs) in Q12, 0..127 -> 30 Hz..16 kHz logarithmic */\n");
+    printf("const uint16_t fm_fx_svf_g[128] = {");
+    for (int i = 0; i < 128; i++) {
+        double hz = 30.0 * pow(16000.0 / 30.0, i / 127.0);
+        double g = tan(M_PI * hz / 44100.0);
+        int v = (int)(g * 4096.0 + 0.5);
+        if (v < 1) v = 1;
+        if (v > 4090) v = 4090;
+        printf("%s%d,", (i % 12) ? " " : "\n   ", v);
+    }
+    printf("\n};\n\n");
+
     char hex[65];
     sha256(blob, n, hex);
     printf("const char fm_tables_sha256[65] = \"%s\";\n", hex);

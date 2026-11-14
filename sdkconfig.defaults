@@ -12,6 +12,4 @@ CONFIG_LOG_DEFAULT_LEVEL_WARN=y
 # The engine renders in a task, so flash cache misses during I2S are already handled by
 # the DMA; keep the interrupt watchdog generous enough for an ES8311 write at boot.
 CONFIG_ESP_INT_WDT_TIMEOUT_MS=800
-# No Wi-Fi: the instrument is a synth. This also keeps the WiFi blob out of the build.
-CONFIG_ESP_WIFI_ENABLED=n
-CONFIG_BT_ENABLED=n
+# No Wi-Fi, no Bluetooth: the component allow-list in ../../CMakeLists.txt excludes them.

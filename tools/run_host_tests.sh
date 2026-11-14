@@ -70,3 +70,9 @@ cc $CFLAGS -c "$ROOT/test/host/test_midi.c" -o "$BUILD/test_midi.o"
 cc -o "$BUILD/test_midi" "$BUILD/test_midi.o" "$BUILD/fm_midi.o" "$BUILD/fm_bank.o" \
    "$BUILD/fm_bank_data.o" "$BUILD/fm_engine.o" "$BUILD/fm_tables.o" -lm
 "$BUILD/test_midi"
+
+echo "== fx chain"
+cc $CFLAGS -c "$ROOT/components/fmengine/src/fm_fx.c" -o "$BUILD/fm_fx.o"
+cc $CFLAGS -c "$ROOT/test/host/test_fx.c" -o "$BUILD/test_fx.o"
+cc -o "$BUILD/test_fx" "$BUILD/test_fx.o" "$BUILD/fm_fx.o" "$BUILD/fm_tables.o" -lm
+"$BUILD/test_fx"
