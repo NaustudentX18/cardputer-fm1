@@ -76,3 +76,12 @@ cc $CFLAGS -c "$ROOT/components/fmengine/src/fm_fx.c" -o "$BUILD/fm_fx.o"
 cc $CFLAGS -c "$ROOT/test/host/test_fx.c" -o "$BUILD/test_fx.o"
 cc -o "$BUILD/test_fx" "$BUILD/test_fx.o" "$BUILD/fm_fx.o" "$BUILD/fm_tables.o" -lm
 "$BUILD/test_fx"
+
+echo "== ui"
+cc $CFLAGS -c "$ROOT/components/fmengine/src/fm_ui.c"      -o "$BUILD/fm_ui.o"
+cc $CFLAGS -c "$ROOT/components/fmengine/src/fm_ui_font.c" -o "$BUILD/fm_ui_font.o"
+cc $CFLAGS -c "$ROOT/test/host/test_ui.c"                   -o "$BUILD/test_ui.o"
+cc -o "$BUILD/test_ui" "$BUILD/test_ui.o" "$BUILD/fm_ui.o" "$BUILD/fm_ui_font.o" \
+   "$BUILD/fm_engine.o" "$BUILD/fm_tables.o" "$BUILD/fm_bank.o" "$BUILD/fm_bank_data.o" \
+   "$BUILD/fm_fx.o" -lm
+"$BUILD/test_ui"

@@ -32,6 +32,8 @@
 #include "fm_bank.h"
 #include "fm_keys.h"
 #include "fm_midi.h"
+#include "fm_ui.h"
+#include "fm_display.h"
 
 static const char *TAG = "fm1";
 
@@ -45,6 +47,8 @@ static i2s_chan_handle_t tx_chan;
 static fm_synth_t synth;                 /* 9.2 KB, static: never on a stack */
 static int32_t mix_buf[FM_N];
 static fm_midi_t midi;                   /* ~8 KB: SysEx buffer for DX7 banks */
+static uint16_t ui_fb[FM_UI_W * FM_UI_H]; /* 64,800 B of RGB565: the one big buffer */
+static fm_ui_state_t ui;
 
 /* ---- the codec ------------------------------------------------------------ */
 /* ES8311 register writes, from M5Unified's speaker enable sequence
@@ -215,6 +219,8 @@ static int fn_down, octave;
 
 /* Fn+F12 runs the on-device benchmark; defined below with the UI task. */
 static void bench_task(void *arg);
+/* Renders the current page into the framebuffer and pushes it to the panel. */
+static void draw_ui(void);
 
 /* Note tracking so a key release is matched to the note it started, even if the octave
  * changed in between. */
@@ -234,6 +240,13 @@ static void handle_event(uint16_t key, int pressed)
     if (key == ']' && fn_down && pressed) {           /* OCT+ */
         if (octave < FM_KEYS_OCTAVE_MAX) octave++;
         ESP_LOGI(TAG, "octave %d", octave);
+        return;
+    }
+    if (fn_down && pressed && key >= '1' && key <= '9') {
+        ui.page = (fm_page_t)(key - '1');
+        if (ui.page >= FM_PAGE_COUNT)
+            ui.page = FM_PAGE_HOME;
+        draw_ui();
         return;
     }
     if (key == FM_KEY_F12 && fn_down && pressed) {
@@ -304,10 +317,29 @@ static void bench_task(void *arg)
     vTaskDelete(NULL);
 }
 
+/* Page navigation: Fn + 1..9 selects a page, so every screen is reachable on the device
+ * exactly as the screenshots show it. */
+static void draw_ui(void)
+{
+    ui.program = 1;
+    ui.battery_pct = 80;                 /* TODO: BOARD_BATT_ADC once on hardware */
+    ui.voices_used = (uint8_t)fm_synth_voice_count(&synth);
+    ui.voices_max = FM_VOICES;
+    ui.patch = synth.patch;
+    ui.algorithm = synth.patch[FM_ALG];
+    memcpy(ui.name, "PIANO 1", 8);
+    fm_ui_render(&ui, ui_fb);
+    fm_display_blit(ui_fb);
+}
+
 static void ui_task(void *arg)
 {
     uint8_t stat = 0;
     (void)arg;
+    memset(&ui, 0, sizeof(ui));
+    ui.page = FM_PAGE_HOME;
+    ui.sub_pages = 1;
+    draw_ui();
     for (;;) {
         if (keypad_read(TCA_REG_INT_STAT, &stat, 1) == ESP_OK && (stat & 0x01)) {
             uint8_t count = 0;
@@ -346,6 +378,7 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(i2c_new_master_bus(&bus_cfg, &i2c_bus));
 
+    ESP_ERROR_CHECK(fm_display_init());
     ESP_ERROR_CHECK(audio_init());
     ESP_ERROR_CHECK(codec_init());
     ESP_ERROR_CHECK(keypad_init());

@@ -9,6 +9,8 @@ idf_component_register(
         "src/fm_bank_data.c"
         "src/fm_keys.c"
         "src/fm_midi.c"
+        "src/fm_ui.c"
+        "src/fm_ui_font.c"
     INCLUDE_DIRS "include"
 )
 

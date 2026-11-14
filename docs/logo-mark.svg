@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 132" width="132" height="132" role="img" aria-label="Cardputer FM-1 mark">
+  <rect width="132" height="132" rx="28" fill="#0F172A"/>
+  <rect x="26.00" y="12.00" width="5.00" height="76.00" rx="2.50" fill="#F8FAFC"/>
+<rect x="30.00" y="12.00" width="90.50" height="8.50" rx="4.25" fill="#F8FAFC"/>
+<rect x="30.00" y="25.50" width="28.50" height="8.50" rx="4.25" fill="#F8FAFC"/>
+<rect x="30.00" y="39.00" width="28.50" height="8.50" rx="4.25" fill="#22C55E"/>
+<rect x="30.00" y="52.50" width="59.50" height="8.50" rx="4.25" fill="#F8FAFC"/>
+<rect x="30.00" y="66.00" width="28.50" height="8.50" rx="4.25" fill="#22C55E"/>
+<rect x="30.00" y="79.50" width="28.50" height="8.50" rx="4.25" fill="#F8FAFC"/>
+<path d="M62.00 56.75 H102.00 V43.25" fill="none" stroke="#FDBA74" stroke-width="2.20" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M57.00 16.25 h6.00 v-7.25 h-19.00" fill="none" stroke="#22C55E" stroke-width="2.20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

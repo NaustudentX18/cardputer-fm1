@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cardputer-fm1 — a six-operator FM synthesizer for the M5Stack Cardputer ADV</title>
+<meta name="description" content="An FM-1-class six-operator FM synthesizer rebuilt for the ESP32-S3 Cardputer ADV. Engine ported from msfa and gated bit-exact. Open source, Apache-2.0.">
+<meta property="og:title" content="cardputer-fm1">
+<meta property="og:description" content="Six-operator FM on the Cardputer ADV. Bit-exact against upstream msfa. APACHE-2.0.">
+<meta property="og:image" content="logo.svg">
+<link rel="icon" href="logo-mark.svg" type="image/svg+xml">
+<style>
+  :root{
+    --bg:#0F172A; --panel:#1B2336; --edge:#2A354B; --muted:#272F42;
+    --fg:#F8FAFC; --dim:#94A3B8; --accent:#22C55E; --warm:#FDBA74;
+    --mono:ui-monospace,"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+    --s1:8px; --s2:16px; --s3:24px; --s4:32px; --s5:48px; --s6:64px; --s7:96px;
+    --maxw:1100px; --radius:12px;
+  }
+  @media (prefers-color-scheme:light){
+    :root{ --bg:#F8FAFC; --panel:#FFFFFF; --edge:#E2E8F0; --muted:#F1F5F9;
+           --fg:#0F172A; --dim:#52607A; --accent:#15803D; --warm:#B45309; }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:var(--mono); font-size:16px; line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline; text-underline-offset:3px}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:4px}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 var(--s3)}
+  @media (max-width:480px){ .wrap{padding:0 20px} body{font-size:15px} }
+  .eyebrow{
+    font-size:12px; letter-spacing:.18em; text-transform:uppercase; color:var(--dim);
+  }
+  h1,h2,h3{margin:0; font-weight:500; letter-spacing:-.02em; line-height:1.15}
+  h1{font-size:clamp(26px,7.2vw,44px); overflow-wrap:break-word}
+  h2{font-size:clamp(20px,3vw,26px); margin-bottom:var(--s2)}
+  h3{font-size:16px}
+  p{margin:0 0 var(--s2); color:var(--dim); max-width:min(68ch,100%); overflow-wrap:break-word}
+  code{font-family:var(--mono); font-size:.92em; background:var(--muted);
+       border:1px solid var(--edge); border-radius:5px; padding:.1em .4em; color:var(--fg)}
+
+  /* header */
+  header{
+    border-bottom:1px solid var(--edge); position:sticky; top:0;
+    background:color-mix(in oklab, var(--bg) 88%, transparent);
+    backdrop-filter:blur(10px); z-index:10;
+  }
+  .nav{display:flex; align-items:center; gap:var(--s3); height:60px}
+  .brand{display:flex; align-items:center; gap:10px; font-size:14px; color:var(--fg); white-space:nowrap}
+  .brand img{width:28px; height:28px; display:block}
+  .brand b{font-weight:500}
+  .brand span{color:var(--accent)}
+  .nav ul{display:flex; gap:var(--s3); margin:0 0 0 auto; padding:0; list-style:none; font-size:13px}
+  .nav ul a{color:var(--dim)}
+  .nav ul a:hover{color:var(--fg)}
+  @media (max-width:720px){ .nav ul{display:none} }
+
+  /* hero */
+  .hero{padding:var(--s7) 0 var(--s6); display:grid; gap:var(--s5);
+        grid-template-columns:1.05fr .95fr; align-items:center}
+  @media (max-width:860px){ .hero{grid-template-columns:1fr; padding:var(--s5) 0 var(--s4)} }
+  .hero h1 span{color:var(--accent)}
+  .lede{font-size:17px; color:var(--dim); margin-top:var(--s2); max-width:min(60ch,100%)}
+  .cta{display:flex; flex-wrap:wrap; gap:var(--s2); margin-top:var(--s3)}
+  .btn{
+    display:inline-flex; align-items:center; gap:8px; min-height:44px;
+    padding:0 var(--s2); border-radius:8px; font-size:14px;
+    border:1px solid var(--edge); color:var(--fg); background:var(--panel);
+    transition:border-color .18s ease, background .18s ease, transform .18s ease;
+  }
+  .btn:hover{border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+  .btn-primary{background:var(--accent); color:#06210F; border-color:var(--accent); font-weight:500}
+  .btn-primary:hover{background:color-mix(in oklab, var(--accent) 88%, white); color:#06210F}
+
+  /* the device frame around the real screen */
+  .device{
+    background:var(--panel); border:1px solid var(--edge); border-radius:var(--radius);
+    padding:var(--s2); box-shadow:0 24px 60px -30px rgba(0,0,0,.75);
+  }
+  .device .screen{
+    display:block; width:100%; height:auto; border-radius:6px;
+    image-rendering:pixelated; background:#000;
+  }
+  .device .label{
+    display:flex; justify-content:space-between; gap:var(--s2);
+    font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--dim); padding:10px 4px 2px;
+  }
+  .device .label em{font-style:normal; color:var(--accent)}
+
+  /* stat strip */
+  .stats{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+    background:var(--edge); border:1px solid var(--edge); border-radius:var(--radius);
+    overflow:hidden; margin:var(--s5) 0;
+  }
+  @media (max-width:720px){ .stats{grid-template-columns:repeat(2,1fr)} }
+  .stat{background:var(--panel); padding:var(--s2) var(--s3)}
+  .stat b{display:block; font-size:24px; font-weight:500; color:var(--fg); letter-spacing:-.02em}
+  .stat small{color:var(--dim); font-size:12px; letter-spacing:.04em}
+
+  section{padding:var(--s6) 0; border-top:1px solid var(--edge)}
+  section:first-of-type{border-top:0}
+
+  /* gallery */
+  .gallery{display:grid; grid-template-columns:repeat(2,1fr); gap:var(--s3)}
+  @media (max-width:760px){ .gallery{grid-template-columns:1fr} }
+  figure{margin:0; background:var(--panel); border:1px solid var(--edge);
+         border-radius:10px; overflow:hidden}
+  figure img{display:block; width:100%; height:auto; image-rendering:pixelated}
+  figcaption{padding:10px 12px; font-size:12px; color:var(--dim);
+             border-top:1px solid var(--edge); display:flex; justify-content:space-between; gap:8px}
+  figcaption b{font-weight:500; color:var(--fg)}
+
+  /* spec table */
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--edge); vertical-align:top}
+  th{color:var(--dim); font-weight:400; font-size:12px; letter-spacing:.08em; text-transform:uppercase}
+  td code{white-space:nowrap}
+  .ok{color:var(--accent)}
+  .pend{color:var(--warm)}
+
+  /* gates */
+  .gates{display:grid; grid-template-columns:repeat(2,1fr); gap:var(--s2)}
+  @media (max-width:720px){ .gates{grid-template-columns:1fr} }
+  .gate{background:var(--panel); border:1px solid var(--edge); border-radius:10px; padding:var(--s2) var(--s3)}
+  .gate h3{margin-bottom:6px}
+  .gate p{margin:0; font-size:13px}
+  .gate .n{color:var(--accent)}
+
+  /* install */
+  pre{
+    margin:0 0 var(--s2); max-width:100%; padding:var(--s2); overflow-x:auto;
+    background:var(--panel); border:1px solid var(--edge); border-radius:10px;
+    font-size:13px; line-height:1.7; color:var(--fg);
+  }
+  pre .c{color:var(--dim)}
+  pre .k{color:var(--accent)}
+
+  /* honesty note */
+  .note{
+    border-left:2px solid var(--warm); background:var(--panel);
+    border-radius:0 10px 10px 0; padding:var(--s2) var(--s3); margin:var(--s3) 0 0;
+  }
+  .note h3{color:var(--warm); margin-bottom:6px}
+  .note p{margin:0; font-size:14px}
+
+  footer{border-top:1px solid var(--edge); padding:var(--s5) 0 var(--s6);
+         display:flex; flex-wrap:wrap; gap:var(--s2) var(--s4);
+         justify-content:space-between; align-items:center; font-size:13px; color:var(--dim)}
+  footer .links{display:flex; gap:var(--s3); flex-wrap:wrap}
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important; animation:none !important; scroll-behavior:auto !important}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#top">
+      <img src="logo-mark.svg" alt="" width="28" height="28">
+      <b>cardputer</b><span>fm-1</span>
+    </a>
+    <ul>
+      <li><a href="#screens">Screens</a></li>
+      <li><a href="#engine">Engine</a></li>
+      <li><a href="#build">Build</a></li>
+      <li><a href="https://github.com/NaustudentX18/cardputer-fm1">GitHub</a></li>
+    </ul>
+  </div>
+</header>
+
+<main id="top">
+
+  <div class="wrap hero">
+    <div>
+      <p class="eyebrow">six-operator FM · ESP32-S3</p>
+      <h1>An FM-1-class synth that fits in your <span>card</span>.</h1>
+      <p class="lede">
+        The M-VAVE FM-1 is a six-operator FM instrument. Its engine runs on a JieLi chip
+        that cannot be ported, but the algorithm is published — so this is the same
+        algorithm, rebuilt in integer C for the M5Stack Cardputer ADV, and
+        <b>gated bit-exact against upstream msfa</b>.
+      </p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/NaustudentX18/cardputer-fm1">Source on GitHub</a>
+        <a class="btn" href="#screens">See the real UI</a>
+      </div>
+    </div>
+    <div class="device">
+      <img class="screen" src="screens/home.png" width="960" height="540"
+           alt="The instrument's home screen as rendered by the firmware's own renderer: a live waveform, the voice meter, algorithm 5, feedback 6, transpose 24.">
+      <div class="label"><span>240 × 135 · ST7789V2</span><em>real renderer output</em></div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><b>606,720</b><small>samples bit-exact</small></div>
+      <div class="stat"><b>32</b><small>algorithms, msfa table</small></div>
+      <div class="stat"><b>128</b><small>factory voices</small></div>
+      <div class="stat"><b>268 KB</b><small>firmware binary</small></div>
+    </div>
+  </div>
+
+  <section id="screens">
+    <div class="wrap">
+      <p class="eyebrow">the actual interface</p>
+      <h2>Every screen is the renderer's own output</h2>
+      <p>
+        These images are not mock-ups. Each one is produced by
+        <code>fm_ui_render()</code> — the same function the firmware calls into a
+        framebuffer — and dumped to PNG by <code>test/host/screenshot.c</code>. If a page
+        is wrong, the picture is wrong in exactly the same way the device would be.
+      </p>
+      <div class="gallery">
+        <figure>
+          <img src="screens/home.png" width="960" height="540" loading="lazy"
+               alt="Home: oscilloscope trace, 12-block voice meter, algorithm, feedback and transpose readouts.">
+          <figcaption><b>OSC</b><span>home</span></figcaption>
+        </figure>
+        <figure>
+          <img src="screens/edit.png" width="960" height="540" loading="lazy"
+               alt="Edit: the selected operator's envelope and level parameters as six tiles with bar graphs.">
+          <figcaption><b>EDIT</b><span>operator</span></figcaption>
+        </figure>
+        <figure>
+          <img src="screens/alg.png" width="960" height="540" loading="lazy"
+               alt="Algorithm: six operators stacked as a signal-flow diagram, carriers outlined in green, feedback in amber.">
+          <figcaption><b>ALG</b><span>routing</span></figcaption>
+        </figure>
+        <figure>
+          <img src="screens/env.png" width="960" height="540" loading="lazy"
+               alt="Envelope: the ADSR shape drawn as a real envelope with four value tiles.">
+          <figcaption><b>ENV</b><span>ADSR</span></figcaption>
+        </figure>
+        <figure>
+          <img src="screens/lfo.png" width="960" height="540" loading="lazy"
+               alt="LFO: the selected waveform drawn beside a list of the six shapes.">
+          <figcaption><b>LFO</b><span>six waves</span></figcaption>
+        </figure>
+        <figure>
+          <img src="screens/fx.png" width="960" height="540" loading="lazy"
+               alt="Effects: the six-slot chain as a grid, with the selected slot outlined and its parameters below.">
+          <figcaption><b>FX</b><span>six slots</span></figcaption>
+        </figure>
+        <figure>
+          <img src="screens/seq.png" width="960" height="540" loading="lazy"
+               alt="Sequencer: sixteen steps in two rows, filled steps showing their note, transport state showing PLAY.">
+          <figcaption><b>SEQ</b><span>16 steps</span></figcaption>
+        </figure>
+        <figure>
+          <img src="screens/preset.png" width="960" height="540" loading="lazy"
+               alt="Preset browser: eight visible voices with their real factory names, the selected one highlighted.">
+          <figcaption><b>PRESET</b><span>browser</span></figcaption>
+        </figure>
+        <figure>
+          <img src="screens/bench.png" width="960" height="540" loading="lazy"
+               alt="Benchmark: cycles per sample and percentage of a core for each polyphony setting.">
+          <figcaption><b>BENCH</b><span>on device</span></figcaption>
+        </figure>
+      </div>
+      <div class="note">
+        <h3>The benchmark screen is the point</h3>
+        <p>
+          Whether 12 voices fit in one 240 MHz core is not a guess in this project: press
+          <b>Fn+F12</b> on the device and it measures itself. Until that number is read off
+          real hardware, every performance figure here is an estimate and is labelled as one.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="engine">
+    <div class="wrap">
+      <p class="eyebrow">fidelity</p>
+      <h2>The engine is the published algorithm, not an imitation</h2>
+      <p>
+        The stock FM-1's <code>app.bin</code> contains msfa's 32-row algorithm table
+        <b>verbatim</b> at offset <code>0x8BE8C</code> (V15) — confirmed by byte comparison
+        against upstream <code>fm_core.cc</code>. That is why msfa is the fidelity target:
+        it is what the instrument actually runs.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Gate</th><th>Result</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Engine vs upstream msfa</td><td class="ok">606,720 samples, 0 mismatches</td></tr>
+          <tr><td>Coverage</td><td>32 algorithms × feedback 1–7, velocities 1–127, notes 0–127,
+              release from every envelope stage, 6 LFO waves with PMD/AMD, pitch envelope, bend, block boundaries</td></tr>
+          <tr><td>Lookup tables</td><td>generated by compiling msfa's own <code>Sin::init</code>,
+              <code>Exp2::init</code>, <code>Freqlut::init</code> — not re-derived</td></tr>
+          <tr><td>Factory bank</td><td class="ok">sha256 <code>ecad0b86…6aad25</code> = the hash M-VAVE publishes</td></tr>
+          <tr><td>Voice formats</td><td>156-byte patch, 128-byte record, VCED, VMEM, FM-1 parameter write</td></tr>
+          <tr><td>MIDI</td><td>M-VAVE's own MIDI document: note/FX channels, CC 0–23, realtime, SysEx</td></tr>
+          <tr><td>Footprint</td><td>9,216 B engine state · 37 KB tables and bank in flash</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="build">
+    <div class="wrap">
+      <p class="eyebrow">reproduce it</p>
+      <h2>Build it yourself</h2>
+      <p>
+        The engine has no ESP-IDF dependency, so the whole instrument is testable on a
+        desktop. Five suites run in about three seconds.
+      </p>
+      <pre><span class="c"># the gates</span>
+git clone https://github.com/NaustudentX18/cardputer-fm1
+cd cardputer-fm1
+tools/fetch_msfa.sh        <span class="c"># vendor the Apache-2.0 reference (not committed)</span>
+tools/run_host_tests.sh    <span class="c"># bit-exactness, bank, formats, MIDI, FX, keymap</span>
+
+<span class="c"># the firmware</span>
+<span class="k">source</span> $IDF_PATH/export.sh
+idf.py set-target esp32s3 &amp;&amp; idf.py build</pre>
+      <p style="margin-top:var(--s3)">
+        Requires <code>cc</code> and <code>c++</code> for the gates, ESP-IDF 5.5 for the
+        firmware. No hardware is needed to run the tests.
+      </p>
+      <div class="note">
+        <h3>Not yet run on hardware</h3>
+        <p>
+          No Cardputer ADV was attached while this was written. The firmware compiles,
+          links and sizes; the codec init, keypad driver, I²S path and audio deadline are
+          written and <b>unexecuted</b>. <code>docs/status.md</code> splits every claim into
+          verified / unexecuted / not started.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="eyebrow">licence</p>
+      <h2>Apache-2.0, and why</h2>
+      <p>
+        The engine is ported from msfa (Apache-2.0) and the factory bank is M-VAVE's V15
+        bank, also Apache-2.0. Felucca is an excellent GPL-3.0 firmware for the real FM-1,
+        and it is deliberately <b>not</b> used here: taking it would force this project to
+        GPL-3.0. Two places where Felucca departs from msfa are noted in the source, and
+        this project keeps msfa's behaviour because bit-exactness is the gate.
+      </p>
+      <p style="margin-top:var(--s2)">
+        <code>FM-1</code> and <code>DX7</code> are trademarks of their owners. This project
+        is not affiliated with M-VAVE, Yamaha or Hügelton Instruments.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <div>
+    <b style="color:var(--fg); font-weight:500">cardputer<b style="color:var(--accent)">fm-1</b></b>
+    <div style="margin-top:4px">Six-operator FM · ESP32-S3 · Apache-2.0</div>
+  </div>
+  <div class="links">
+    <a href="https://github.com/NaustudentX18/cardputer-fm1">Source</a>
+    <a href="https://github.com/NaustudentX18/cardputer-fm1/blob/main/docs/status.md">Status</a>
+    <a href="https://github.com/NaustudentX18/cardputer-fm1/blob/main/docs/board.md">Board notes</a>
+    <a href="https://github.com/google/music-synthesizer-for-android">msfa</a>
+  </div>
+</footer>
+
+</body>
+</html>
