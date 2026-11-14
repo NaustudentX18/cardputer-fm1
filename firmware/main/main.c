@@ -30,6 +30,7 @@
 #include "fm_engine.h"
 #include "fm_bank.h"
 #include "fm_keys.h"
+#include "fm_midi.h"
 
 static const char *TAG = "fm1";
 
@@ -42,6 +43,7 @@ static const char *TAG = "fm1";
 static i2s_chan_handle_t tx_chan;
 static fm_synth_t synth;                 /* 9.2 KB, static: never on a stack */
 static int32_t mix_buf[FM_N];
+static fm_midi_t midi;                   /* ~8 KB: SysEx buffer for DX7 banks */
 
 /* ---- the codec ------------------------------------------------------------ */
 /* ES8311 register writes, from M5Unified's speaker enable sequence
@@ -247,6 +249,39 @@ static void handle_event(uint16_t key, int pressed)
     }
 }
 
+/* MIDI in. A transport (USB MIDI, BLE, or the CAP header UART) calls this with bytes as
+ * they arrive; everything that decides meaning is in fm_midi, which is gated on the host.
+ * Running on the UI task keeps the audio deadline untouched. */
+static void midi_feed(const uint8_t *bytes, size_t n)
+{
+    fm_midi_out_t out;
+    for (size_t i = 0; i < n; i++) {
+        memset(&out, 0, sizeof(out));
+        uint32_t ev = fm_midi_feed(&midi, bytes[i], &out);
+        if (ev & FM_MIDI_EV_NOTE_ON)
+            fm_synth_note_on(&synth, out.note.note, out.note.velocity);
+        if (ev & FM_MIDI_EV_NOTE_OFF)
+            fm_synth_note_off(&synth, out.note.note);
+        if (ev & FM_MIDI_EV_CONTROL)
+            fm_synth_pitch_bend(&synth, midi.pitchbend);
+        if (ev & FM_MIDI_EV_PATCH) {
+            uint8_t patch[FM_PATCH_BYTES];
+            if (fm_midi_take_patch(&midi, patch) == 0)
+                fm_synth_set_patch(&synth, patch);
+        }
+        if (ev & FM_MIDI_EV_PARAM) {
+            /* FM-1 single-parameter write: patch bytes 0..155, applied to the live patch.
+             * Sounding notes keep their envelopes, as the FM-1 does; the change lands on
+             * the next note-on because fm_synth_set_patch rebuilds voice state only then. */
+            uint8_t patch[FM_PATCH_BYTES];
+            for (int k = 0; k < FM_PATCH_BYTES; k++)
+                patch[k] = synth.patch[k];
+            patch[midi.last_param] = midi.last_value;
+            fm_synth_set_patch(&synth, patch);
+        }
+    }
+}
+
 static void ui_task(void *arg)
 {
     uint8_t stat = 0;
@@ -297,6 +332,7 @@ void app_main(void)
      * before it would be wiped. Voice 1 of the factory bank is PIANO 1, what the FM-1
      * itself boots with, so the instrument sounds like itself at power-on. */
     fm_synth_init(&synth, FM_VOICES);
+    fm_midi_init(&midi);
     uint8_t patch[FM_PATCH_BYTES];
     if (fm_program_patch(patch, 0) == 0)
         fm_synth_set_patch(&synth, patch);

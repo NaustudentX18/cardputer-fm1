@@ -63,3 +63,10 @@ cc $CFLAGS -c "$ROOT/components/fmengine/src/fm_keys.c" -o "$BUILD/fm_keys.o"
 cc $CFLAGS -I"$ROOT/firmware/main" -c "$ROOT/test/host/test_keys.c" -o "$BUILD/test_keys.o"
 cc -o "$BUILD/test_keys" "$BUILD/test_keys.o" "$BUILD/fm_keys.o" -lm
 "$BUILD/test_keys"
+
+echo "== midi contract"
+cc $CFLAGS -c "$ROOT/components/fmengine/src/fm_midi.c" -o "$BUILD/fm_midi.o"
+cc $CFLAGS -c "$ROOT/test/host/test_midi.c" -o "$BUILD/test_midi.o"
+cc -o "$BUILD/test_midi" "$BUILD/test_midi.o" "$BUILD/fm_midi.o" "$BUILD/fm_bank.o" \
+   "$BUILD/fm_bank_data.o" "$BUILD/fm_engine.o" "$BUILD/fm_tables.o" -lm
+"$BUILD/test_midi"
