@@ -57,3 +57,9 @@ if [ 1 = 1 ]; then
   echo "== bench (host timing; device figures come from the same file under ESP-IDF)"
   "$BUILD/bench_engine"
 fi
+
+echo "== keymap"
+cc $CFLAGS -c "$ROOT/components/fmengine/src/fm_keys.c" -o "$BUILD/fm_keys.o"
+cc $CFLAGS -I"$ROOT/firmware/main" -c "$ROOT/test/host/test_keys.c" -o "$BUILD/test_keys.o"
+cc -o "$BUILD/test_keys" "$BUILD/test_keys.o" "$BUILD/fm_keys.o" -lm
+"$BUILD/test_keys"
