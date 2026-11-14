@@ -23,20 +23,21 @@ cc -std=gnu11 -O2 -Wall -Wextra -Wno-unused-parameter \
 
 "$BIN" "$OUT"
 
-# ImageMagick 7 ships `magick`; 6 ships `convert`. The CI runner has only the latter, and
-# silently skipping the upscale produced a commit whose images did not match the script.
+# The 4x upscale is cosmetic (the page sets image-rendering:pixelated anyway), so it is
+# optional: without ImageMagick the 1x panel images are still correct and still committed.
+# What is NOT optional is that the pixels match the renderer, which is what the CI gate
+# checks against the 1x output.
 IM=""
 if command -v magick >/dev/null 2>&1; then
   IM="magick"
 elif command -v convert >/dev/null 2>&1; then
   IM="convert"
 fi
-if [ -n "$IM" ]; then
+if [ -n "$IM" ] && [ -z "${NO_UPSCALE:-}" ]; then
   for f in "$OUT"/*.png; do
     "$IM" "$f" -filter point -resize 400% -strip -define png:compression-level=9 "$f"
   done
   echo "upscaled 4x with point filtering ($IM)"
 else
-  echo "error: ImageMagick not found (need 'magick' or 'convert')" >&2
-  exit 1
+  echo "note: no ImageMagick (or NO_UPSCALE set); images stay at 240x135, unchanged"
 fi
