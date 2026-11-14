@@ -5,7 +5,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 J="$ROOT/reference/msfa/app/src/main/jni"
-BUILD="${BUILD_DIR:-$ROOT/build/host}"
+BUILD="${BUILD_DIR:-$ROOT/build-host}"
 mkdir -p "$BUILD"
 
 if [ ! -f "$J/fm_core.cc" ]; then
