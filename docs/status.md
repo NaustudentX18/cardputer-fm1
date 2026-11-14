@@ -28,7 +28,8 @@ source /data/toolchains/esp-idf/export.sh
 idf.py set-target esp32s3 && idf.py build
 ```
 
-cardputer_fm1.bin 0x41880 = 268 KB. Flash data 80 KB, DIRAM 75.7 KB of 341 KB.
+cardputer_fm1.bin 0x4C6B0 = 306 KB, 70% of the app partition free.
+DIRAM 166,743 B used of 341,760 (48.8%), 175 KB free. The framebuffer is 64,800 B of that.
 The app partition has 74% free, so the UI, sequencer and persistence all fit.
 
 ## Written but never executed on hardware
@@ -41,7 +42,7 @@ The app partition has 74% free, so the UI, sequencer and persistence all fit.
 | I²S | same | 44.1 kHz stereo frame accepted by a mono codec |
 | Keypad | same | TCA8418 matrix(7,8) config, event decode, FIFO drain |
 | Task layout | same | the audio task meets 1.45 ms per block |
-| Firmware build | `CMakeLists.txt`, `sdkconfig.defaults` | **builds**: `cardputer_fm1.bin` 313 KB, 70% of the app partition free |
+| Firmware build | `CMakeLists.txt`, `sdkconfig.defaults` | **builds**: `cardputer_fm1.bin` 306 KB (0x4C6B0), 70% of the app partition free |
 
 ## Not started
 

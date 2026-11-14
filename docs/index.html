@@ -205,7 +205,7 @@
       <div class="stat"><b>606,720</b><small>samples bit-exact</small></div>
       <div class="stat"><b>32</b><small>algorithms, msfa table</small></div>
       <div class="stat"><b>128</b><small>factory voices</small></div>
-      <div class="stat"><b>268 KB</b><small>firmware binary</small></div>
+      <div class="stat"><b>306 KB</b><small>firmware binary</small></div>
     </div>
   </div>
 
@@ -300,7 +300,8 @@
           <tr><td>Factory bank</td><td class="ok">sha256 <code>ecad0b86…6aad25</code> = the hash M-VAVE publishes</td></tr>
           <tr><td>Voice formats</td><td>156-byte patch, 128-byte record, VCED, VMEM, FM-1 parameter write</td></tr>
           <tr><td>MIDI</td><td>M-VAVE's own MIDI document: note/FX channels, CC 0–23, realtime, SysEx</td></tr>
-          <tr><td>Footprint</td><td>9,216 B engine state · 37 KB tables and bank in flash</td></tr>
+          <tr><td>Footprint</td><td>9,216 B engine state · 37 KB tables and bank in flash ·
+              64,800 B RGB565 framebuffer · <b>DIRAM 49 % used</b>, 175 KB still free</td></tr>
         </tbody>
       </table>
     </div>
@@ -361,7 +362,7 @@ idf.py set-target esp32s3 &amp;&amp; idf.py build</pre>
 
 <footer class="wrap">
   <div>
-    <b style="color:var(--fg); font-weight:500">cardputer<b style="color:var(--accent)">fm-1</b></b>
+    <span style="color:var(--fg); font-weight:500">cardputer<span style="color:var(--accent)">fm-1</span></span>
     <div style="margin-top:4px">Six-operator FM · ESP32-S3 · Apache-2.0</div>
   </div>
   <div class="links">
