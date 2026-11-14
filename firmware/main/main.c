@@ -213,6 +213,9 @@ static int keypad_translate(uint8_t raw, uint16_t *key, int *pressed)
 
 static int fn_down, octave;
 
+/* Fn+F12 runs the on-device benchmark; defined below with the UI task. */
+static void bench_task(void *arg);
+
 /* Note tracking so a key release is matched to the note it started, even if the octave
  * changed in between. */
 static int8_t key_note[BOARD_KEY_COUNT];
@@ -231,6 +234,11 @@ static void handle_event(uint16_t key, int pressed)
     if (key == ']' && fn_down && pressed) {           /* OCT+ */
         if (octave < FM_KEYS_OCTAVE_MAX) octave++;
         ESP_LOGI(TAG, "octave %d", octave);
+        return;
+    }
+    if (key == FM_KEY_F12 && fn_down && pressed) {
+        /* Fn+F12: measure this device. The result is the polyphony decision. */
+        xTaskCreatePinnedToCore(bench_task, "fm_bench", 8192, NULL, 3, NULL, 0);
         return;
     }
     int off = fm_keys_offset(key, fn_down);
@@ -281,6 +289,19 @@ static void midi_feed(const uint8_t *bytes, size_t n)
             fm_synth_set_patch(&synth, patch);
         }
     }
+}
+
+/* The one measurement that decides polyphony. Run on its own task so it cannot delay the
+ * audio deadline while it runs; it prints through the ESP log at INFO. */
+extern int fm_bench_main(void);
+
+static void bench_task(void *arg)
+{
+    (void)arg;
+    ESP_LOGW(TAG, "running the engine benchmark (about 6 s)...");
+    fm_bench_main();
+    ESP_LOGW(TAG, "benchmark done");
+    vTaskDelete(NULL);
 }
 
 static void ui_task(void *arg)

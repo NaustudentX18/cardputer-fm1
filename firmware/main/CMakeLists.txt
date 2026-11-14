@@ -1,7 +1,7 @@
 # ESP-IDF app for the Cardputer ADV. The engine is the fmengine component; it has no IDF
 # dependency, so the host gates build the same files (see tools/run_host_tests.sh).
 idf_component_register(
-    SRCS "main.c" "board_keys.c"
+    SRCS "main.c" "board_keys.c" "../../test/host/bench_engine.c"
     INCLUDE_DIRS "."
     REQUIRES fmengine driver esp_driver_i2s esp_driver_i2c esp_timer log esp_common
 )

@@ -18,7 +18,7 @@ tools/run_host_tests.sh
 | MIDI contract | `test/host/test_midi.c` | 8 groups incl. FX CC map and realtime-in-SysEx |
 | Piano keymap | `test/host/test_keys.c` | 27 notes, F3–G5, base layer silent, octave clamp |
 | FX chain properties | `test/host/test_fx.c` | 10 properties: bypass, per-slot switch, LPF/HPF, monotonic cutoff, reverb tail, delay timing, distortion bounds, chorus/phaser stability, 5 s noise soak, reorder |
-| Host timing | `test/host/bench_engine.c` | shape only, not a device figure |
+| Timing harness | `test/host/bench_engine.c` | compiles for both: host prints ns/sample, device prints cycles/sample and % of core via `esp_cpu_get_cycle_count()`. Reachable on hardware at **Fn+F12** |
 
 ## Firmware build (compiles, links, sizes)
 
@@ -50,11 +50,13 @@ The app partition has 74% free, so the UI, sequencer and persistence all fit.
 
 ## The one number that can invalidate the plan
 
-The audio task logs
+Two numbers, both printed by firmware that is already built:
 
-```
-worst block N us of 1451 us budget
-```
+1. **Fn+F12** runs `fm_bench_main()` on its own task (~6 s) and logs cycles/sample and % of
+   a 240 MHz core for 1..12 voices on a worst-case patch, then the worst of the 128 factory
+   voices. This is the measurement the polyphony decision must be made from.
+2. The audio task logs `worst block N us of 1451 us budget` every ~5.8 s: the steady-state
+   deadline margin during real playing.
 
-every ~5.8 s. That single number decides polyphony. Everything in the plan about 12 voices
-at 44.1 kHz is an estimate until it is read off a real Cardputer ADV.
+Everything in the plan about 12 voices at 44.1 kHz is an estimate until (1) is read off a
+real Cardputer ADV.

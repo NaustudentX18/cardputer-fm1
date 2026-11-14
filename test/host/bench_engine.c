@@ -12,6 +12,7 @@
  *   device: idf.py build flash monitor   (prints cycles/block and % of a core)
  */
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include "fm_engine.h"
@@ -21,6 +22,9 @@
 #include "esp_cpu.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+/* CCOUNT is 32-bit and wraps every ~17.9 s at 240 MHz. Every measured run here is well
+ * under that, and the deltas are computed with unsigned arithmetic, so a wrap inside a
+ * single measurement is still exact. */
 static int64_t cycles_now(void) { return (int64_t)esp_cpu_get_cycle_count(); }
 #else
 #include <time.h>
@@ -30,6 +34,15 @@ static int64_t cycles_now(void)
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;   /* nanoseconds on the host */
 }
+#endif
+
+/* On the device, printf goes through the ESP log so the output is visible in a monitor and
+ * does not fight the IDF's stdout handling. One line at a time, at INFO level. */
+#ifdef ESP_PLATFORM
+#define BENCH_PRINTF(...) do { esp_log_write(ESP_LOG_INFO, "fmbench", __VA_ARGS__); \
+                               esp_log_write(ESP_LOG_INFO, "fmbench", "\n"); } while (0)
+#else
+#define BENCH_PRINTF(...) printf(__VA_ARGS__)
 #endif
 
 #define BLOCKS 2000          /* ~2.9 s of audio at 44.1 kHz */
@@ -57,15 +70,15 @@ static void worst_patch(uint8_t p[FM_PATCH_BYTES])
     p[FM_OPS_ON] = 0x3f;
 }
 
-int main(void)
+int fm_bench_main(void)
 {
     fm_engine_init();
     uint8_t patch[FM_PATCH_BYTES];
     worst_patch(patch);
-    int out[FM_N];
+    int32_t out[FM_N];   /* int32_t, not int: on xtensa int32_t is long int */
 
-    printf("fm1 block cost: %d blocks x %d samples, worst-case patch\n", BLOCKS, FM_N);
-    printf("voices  total_ms   per_block   per_sample   %% of 240MHz core\n");
+    BENCH_PRINTF("fm1 block cost: %d blocks x %d samples, worst-case patch\n", BLOCKS, FM_N);
+    BENCH_PRINTF("voices  total_ms   per_block   per_sample   %% of 240MHz core\n");
 
     for (int v = 1; v <= MAX_V; v++) {
         fm_synth_init(&s, (uint8_t)v);
@@ -93,17 +106,17 @@ int main(void)
         double per_block = total_cyc / BLOCKS;
         double per_sample = per_block / FM_N;
         double core = per_sample * 100.0 / 240000000.0 * FM_SAMPLE_RATE;
-        printf("%6d  %8.1f  %10.0f  %11.1f  %15.1f\n", v, total_cyc / 240000.0,
+        BENCH_PRINTF("%6d  %8.1f  %10.0f  %11.1f  %15.1f\n", v, total_cyc / 240000.0,
                per_block, per_sample, core);
 #else
         double total_ns = (double)(t1 - t0);
-        printf("%6d  %8.1f  %10.0f  %11.1f  %15s\n", v, total_ns / 1e6,
+        BENCH_PRINTF("%6d  %8.1f  %10.0f  %11.1f  %15s\n", v, total_ns / 1e6,
                total_ns / BLOCKS, total_ns / (BLOCKS * FM_N), "(host ns)");
 #endif
     }
 
     /* the real patches, so the worst case can be compared with what people play */
-    printf("\nper-voice cost for the 128 factory voices (1 voice, cycles/sample):\n");
+    BENCH_PRINTF("\nper-voice cost for the 128 factory voices (1 voice, cycles/sample):\n");
     double worst = 0;
     unsigned worst_p = 0;
     for (unsigned p = 0; p < FM_BANK_VOICES; p++) {
@@ -121,10 +134,14 @@ int main(void)
         if (per_sample > worst) { worst = per_sample; worst_p = p; }
     }
 #ifdef ESP_PLATFORM
-    printf("  worst: program %u at %.1f cycles/sample -> %.1f %% of a core at 44.1 kHz\n",
+    BENCH_PRINTF("  worst: program %u at %.1f cycles/sample -> %.1f %% of a core at 44.1 kHz\n",
            worst_p + 1, worst, worst * FM_SAMPLE_RATE * 100.0 / 240000000.0);
 #else
-    printf("  worst: program %u at %.1f host-ns/sample (not a device figure)\n", worst_p + 1, worst);
+    BENCH_PRINTF("  worst: program %u at %.1f host-ns/sample (not a device figure)\n", worst_p + 1, worst);
 #endif
     return 0;
 }
+
+#ifndef ESP_PLATFORM
+int main(void) { return fm_bench_main(); }
+#endif
