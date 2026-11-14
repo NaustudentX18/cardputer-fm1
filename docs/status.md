@@ -17,7 +17,18 @@ tools/run_host_tests.sh
 | Voice/SysEx formats | same | VCED, VMEM, param write, overflow, checksum rules |
 | MIDI contract | `test/host/test_midi.c` | 8 groups incl. FX CC map and realtime-in-SysEx |
 | Piano keymap | `test/host/test_keys.c` | 27 notes, F3–G5, base layer silent, octave clamp |
+| FX chain properties | `test/host/test_fx.c` | 10 properties: bypass, per-slot switch, LPF/HPF, monotonic cutoff, reverb tail, delay timing, distortion bounds, chorus/phaser stability, 5 s noise soak, reorder |
 | Host timing | `test/host/bench_engine.c` | shape only, not a device figure |
+
+## Firmware build (compiles, links, sizes)
+
+```
+source /data/toolchains/esp-idf/export.sh
+idf.py set-target esp32s3 && idf.py build
+```
+
+cardputer_fm1.bin 0x41880 = 268 KB. Flash data 80 KB, DIRAM 75.7 KB of 341 KB.
+The app partition has 74% free, so the UI, sequencer and persistence all fit.
 
 ## Written but never executed on hardware
 
@@ -27,12 +38,11 @@ tools/run_host_tests.sh
 | I²S | same | 44.1 kHz stereo frame accepted by a mono codec |
 | Keypad | same | TCA8418 matrix(7,8) config, event decode, FIFO drain |
 | Task layout | same | the audio task meets 1.45 ms per block |
-| Firmware build | `CMakeLists.txt`, `sdkconfig.defaults` | it links and fits in 8 MB |
+| Firmware build | `CMakeLists.txt`, `sdkconfig.defaults` | **builds**: `cardputer_fm1.bin` 268 KB, DIRAM 22% (266 KB free), IRAM 100% used (the engine is in flash, as intended) |
 
 ## Not started
 
 - The 240×135 UI (every FM-1 page).
-- The six-slot FX chain (the CC map that drives it is decoded and tested).
 - MIDI transports bound to the parser: USB MIDI, CAP-header UART, BLE.
 - Sequencer, arpeggiator.
 - Persistence (double-buffered CRC sectors), battery gauge, deep sleep.
