@@ -3,5 +3,5 @@
 idf_component_register(
     SRCS "main.c" "board_keys.c"
     INCLUDE_DIRS "."
-    REQUIRES fmengine driver esp_driver_i2s esp_driver_i2c esp_timer
+    REQUIRES fmengine driver esp_driver_i2s esp_driver_i2c esp_timer log esp_common
 )

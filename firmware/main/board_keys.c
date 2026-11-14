@@ -14,19 +14,19 @@
 #include "board.h"
 
 const uint16_t board_keymap[BOARD_KEY_ROWS][BOARD_KEY_COLS] = {
-    {'`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', BOARD_K_BKSP},
-    {BOARD_K_TAB, 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\'},
-    {BOARD_K_FN, BOARD_K_SHIFT, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', BOARD_K_ENTER},
-    {BOARD_K_CTRL, BOARD_K_OPT, BOARD_K_ALT, 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', BOARD_K_SPACE},
+    {'`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', FM_KEY_BKSP},
+    {FM_KEY_TAB, 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\'},
+    {FM_KEY_FN, FM_KEY_SHIFT, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', FM_KEY_ENTER},
+    {FM_KEY_CTRL, FM_KEY_OPT, FM_KEY_ALT, 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', FM_KEY_SPACE},
 };
 
 /* The Fn layer, as M5Cardputer ships it (added in eccba25): ESC and F1..F12 on the
  * number row, DELETE on backspace, arrows on ; , . / . */
 const uint16_t board_keymap_fn[BOARD_KEY_ROWS][BOARD_KEY_COLS] = {
-    {BOARD_K_ESC, BOARD_K_F1, BOARD_K_F2, BOARD_K_F3, BOARD_K_F4, BOARD_K_F5, BOARD_K_F6,
-     BOARD_K_F7, BOARD_K_F8, BOARD_K_F9, BOARD_K_F10, BOARD_K_F11, BOARD_K_F12, BOARD_K_DEL},
-    {BOARD_K_TAB, 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\'},
-    {BOARD_K_FN, BOARD_K_SHIFT, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', '\0', '\'', BOARD_K_ENTER},
-    {BOARD_K_CTRL, BOARD_K_OPT, BOARD_K_ALT, 'z', 'x', 'c', 'v', 'b', 'n', 'm',
-     BOARD_K_LEFT, BOARD_K_DOWN, BOARD_K_RIGHT, BOARD_K_UP},
+    {FM_KEY_ESC, FM_KEY_F1, FM_KEY_F2, FM_KEY_F3, FM_KEY_F4, FM_KEY_F5, FM_KEY_F6,
+     FM_KEY_F7, FM_KEY_F8, FM_KEY_F9, FM_KEY_F10, FM_KEY_F11, FM_KEY_F12, FM_KEY_DEL},
+    {FM_KEY_TAB, 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\'},
+    {FM_KEY_FN, FM_KEY_SHIFT, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', '\0', '\'', FM_KEY_ENTER},
+    {FM_KEY_CTRL, FM_KEY_OPT, FM_KEY_ALT, 'z', 'x', 'c', 'v', 'b', 'n', 'm',
+     FM_KEY_LEFT, FM_KEY_DOWN, FM_KEY_RIGHT, FM_KEY_UP},
 };
