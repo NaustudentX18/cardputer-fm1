@@ -68,6 +68,20 @@ int main(void)
     memset(&out, 0, sizeof(out));
     uint8_t pc[] = {0xc0, 42};
     CHECK((feed_all(&m, pc, 2, &out) & FM_MIDI_EV_PATCH) && out.program == 42, "program change");
+    /* and it must resolve to that factory voice, not just report the number */
+    {
+        uint8_t pp[FM_PATCH_BYTES], expect[FM_PATCH_BYTES];
+        CHECK(fm_midi_take_patch(&m, pp) == 0, "program change produced no patch");
+        CHECK(fm_program_patch(expect, 42) == 0 && memcmp(pp, expect, FM_PATCH_BYTES) == 0,
+              "program change 42 is not factory voice 43");
+    }
+    /* out of range: ignored, and no patch appears */
+    {
+        uint8_t pcx[] = {0xc0, 200};
+        uint8_t tmp[FM_PATCH_BYTES];
+        feed_all(&m, pcx, 2, &out);
+        CHECK(fm_midi_take_patch(&m, tmp) != 0, "program change 200 was accepted");
+    }
     uint8_t bend[] = {0xe0, 0x00, 0x40};        /* 0x2000 = centre */
     CHECK((feed_all(&m, bend, 3, &out) & FM_MIDI_EV_CONTROL) && out.bend == 0x2000, "pitch bend centre");
     uint8_t bendup[] = {0xe0, 0x7f, 0x7f};
@@ -153,7 +167,34 @@ int main(void)
         fm_midi_feed(&m, 0x11, &out);
     CHECK(m.sysex_overflow == 1, "overflow flagged");
     CHECK((fm_midi_feed(&m, 0xf7, &out) & FM_MIDI_EV_PATCH) == 0, "overflowed frame dropped");
-    printf("  7. SysEx param write, DX7 bank, overflow drop: %s\n", failures > f0 ? "FAIL" : "ok");
+    /* VCED: a single voice, 163 bytes */
+    {
+        fm_midi_init(&m);
+        static uint8_t vced[163];
+        vced[0] = 0xf0; vced[1] = 0x43; vced[2] = 0x00;
+        vced[3] = 0x00; vced[4] = 0x01; vced[5] = 0x1b;
+        for (int i = 0; i < 155; i++)
+            vced[6 + i] = 0x20;                  /* plausible neutral values */
+        vced[6 + FM_ALG] = 7;
+        unsigned vsum = 0;
+        for (int i = 0; i < 155; i++) vsum += vced[6 + i];
+        vced[161] = (uint8_t)((128 - (vsum & 127)) & 127);
+        vced[162] = 0xf7;
+        uint32_t evv = feed_all(&m, vced, 163, &out);
+        CHECK(evv & FM_MIDI_EV_PATCH, "VCED single voice accepted");
+        uint8_t vp[FM_PATCH_BYTES];
+        CHECK(fm_midi_take_patch(&m, vp) == 0, "VCED produced a patch");
+        CHECK(vp[FM_ALG] == 7, "VCED algorithm did not survive");
+        CHECK(vp[FM_OPS_ON] == 0x3f, "VCED did not enable the operators");
+        /* wrong length must be refused, not silently accepted */
+        fm_midi_init(&m);
+        uint8_t shortvced[162];
+        memcpy(shortvced, vced, 161);
+        shortvced[161] = 0xf7;
+        CHECK((feed_all(&m, shortvced, 162, &out) & FM_MIDI_EV_PATCH) == 0,
+              "short VCED was accepted");
+    }
+    printf("  7. SysEx param write, DX7 bank, VCED, overflow drop: %s\n", failures > f0 ? "FAIL" : "ok");
     f0 = failures;
 
     /* 8: instance isolation */

@@ -84,8 +84,18 @@ static uint32_t handle_channel(fm_midi_t *m, uint8_t status, uint8_t d1, uint8_t
         ev |= FM_MIDI_EV_NOTE_OFF;
         break;
     case 0xc0:                                    /* program change: one data byte */
-        if (out) out->program = d1;
-        ev |= FM_MIDI_EV_PATCH;
+        /* A program change selects a factory voice by number, so it must fill the same
+         * "a voice arrived" state a SysEx dump does: otherwise fm_midi_take_patch refuses
+         * it and the firmware has nothing to apply. */
+        if (d1 < FM_BANK_VOICES) {
+            for (int k = 0; k < FM_PACKED_BYTES; k++)
+                m->patch_packed[k] = fm_factory_bank[d1 * FM_PACKED_BYTES + k];
+            m->patch_is_full = 0;
+            m->patch_valid = 1;
+            m->dirty_patch = 1;
+            if (out) out->program = d1;
+            ev |= FM_MIDI_EV_PATCH;
+        }
         break;
     case 0xe0: {                                  /* pitch bend, 14 bit */
         uint16_t v = (uint16_t)((uint16_t)d1 | ((uint16_t)d2 << 7));
@@ -157,15 +167,17 @@ uint32_t fm_midi_feed(fm_midi_t *m, uint8_t b, fm_midi_out_t *out)
                 uint8_t param, value;
                 int r = fm_sysex_decode(m->sysex, m->sysex_len, patch, bank, &dev);
                 if (r == FM_SYSEX_OK || r == FM_SYSEX_BAD_CHECKSUM) {
-                    /* remember it in the packed form: a bank is 32 of those, and a single
-                     * voice fits the same slot as its first entry */
-                    if (r == FM_SYSEX_BAD_LENGTH || m->sysex[3] == 0x00) {
-                        for (int k = 0; k < FM_PACKED_BYTES; k++)
-                            m->patch_packed[k] = patch[k];
+                    /* A VCED voice is already the 156-byte layout, so it is kept whole.
+                     * A VMEM bank is 32 packed records; its first voice is unpacked on the
+                     * way out. They are NOT the same bytes and must not share a buffer. */
+                    if (m->sysex[3] == 0x00) {
+                        memcpy(m->patch_full, patch, FM_PATCH_BYTES);
+                        m->patch_is_full = 1;
                     } else {
                         memcpy(m->patch_packed, bank, FM_PACKED_BYTES);
                         memcpy(m->bank_packed, bank, sizeof(m->bank_packed));
                         m->bank_valid = 1;
+                        m->patch_is_full = 0;
                     }
                     m->patch_valid = 1;
                     m->dirty_patch = 1;
@@ -219,8 +231,12 @@ int fm_midi_take_patch(fm_midi_t *m, uint8_t patch[FM_PATCH_BYTES])
 {
     if (!m->patch_valid)
         return -1;
-    fm_unpack_patch(patch, m->patch_packed);
+    if (m->patch_is_full)
+        memcpy(patch, m->patch_full, FM_PATCH_BYTES);
+    else
+        fm_unpack_patch(patch, m->patch_packed);
     m->patch_valid = 0;
+    m->patch_is_full = 0;
     m->dirty_patch = 0;
     return 0;
 }

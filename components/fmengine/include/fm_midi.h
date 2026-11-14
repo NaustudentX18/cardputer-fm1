@@ -61,7 +61,9 @@ typedef struct {
      * frame has already been consumed. Held in the DX7 128-byte packed form, because a
      * bank dump has 32 of them and a single voice is converted to it on arrival. */
     uint8_t patch_valid;
-    uint8_t patch_packed[FM_PACKED_BYTES];
+    uint8_t patch_full[FM_PATCH_BYTES];      /* valid when patch_is_full (a VCED voice) */
+    uint8_t patch_is_full;
+    uint8_t patch_packed[FM_PACKED_BYTES];   /* valid otherwise (bank record / program) */
     uint8_t bank_valid;
     uint8_t bank_packed[32 * FM_PACKED_BYTES];
 
