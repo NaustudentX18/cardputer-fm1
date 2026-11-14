@@ -14,8 +14,8 @@ tools/run_host_tests.sh
 | Engine vs upstream msfa | `test/host/test_engine.c` + `msfa_ref.cc` | 606,720 samples, **0 mismatches** |
 | Tables | generated from msfa's own init, hash-gated | `1ede81dd…37f2` |
 | Factory bank | `test/host/test_bank.c` | sha256 `ecad0b86…6aad25` = M-VAVE's published hash |
-| Voice/SysEx formats | same | VCED, VMEM, param write, overflow, checksum rules |
-| MIDI contract | `test/host/test_midi.c` | 8 groups incl. FX CC map and realtime-in-SysEx |
+| Voice/SysEx formats | `test/host/test_bank.c` | VMEM round-trip, param write, overflow dropped, checksum reported-not-fatal |
+| MIDI contract | `test/host/test_midi.c` | 8 groups incl. FX CC map, realtime-in-SysEx, **program change resolving to its factory voice**, **VCED kept whole (not stuffed into a bank record)**, short VCED refused |
 | Piano keymap | `test/host/test_keys.c` | 27 notes, F3–G5, base layer silent, octave clamp |
 | FX chain properties | `test/host/test_fx.c` | 10 properties: bypass, per-slot switch, LPF/HPF, monotonic cutoff, reverb tail, delay timing, distortion bounds, chorus/phaser stability, 5 s noise soak, reorder |
 | Timing harness | `test/host/bench_engine.c` | compiles for both: host prints ns/sample, device prints cycles/sample and % of core via `esp_cpu_get_cycle_count()`. Reachable on hardware at **Fn+F12** |
